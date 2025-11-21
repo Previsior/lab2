@@ -9,4 +9,4 @@ results/
 *.csv
 *.json
 data/cifar-*
-data/stl-*
+data/stl10_*
