@@ -1,0 +1,12 @@
+outline.md
+*.pdf
+latex/
+*/__pycache__/
+__pycache__/
+checkpoints/
+results/
+*.pt
+*.csv
+*.json
+data/cifar-*
+data/stl-*
