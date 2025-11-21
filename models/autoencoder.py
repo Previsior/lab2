@@ -1,37 +1,33 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+from torchvision import models
 
 
 class AEEncoder(nn.Module):
     """
-    Lightweight convolutional encoder producing a latent vector.
+    ResNet18-strength encoder producing a latent vector.
     """
 
     def __init__(self, input_size: int = 32, latent_dim: int = 128):
         super().__init__()
         self.input_size = input_size
         self.latent_dim = latent_dim
-        self.conv = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(inplace=True),
-        )
-        conv_out_size = input_size // 8
-        self.flatten_dim = 128 * conv_out_size * conv_out_size
-        self.fc = nn.Linear(self.flatten_dim, latent_dim)
+
+        backbone = models.resnet18(weights=None)
+        if input_size <= 64:
+            # CIFAR-sized inputs: smaller stem and no maxpool to mirror SimCLR's encoder setup
+            backbone.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+            backbone.maxpool = nn.Identity()
+            nn.init.kaiming_normal_(backbone.conv1.weight, mode="fan_out", nonlinearity="relu")
+
+        backbone_out = backbone.fc.in_features
+        backbone.fc = nn.Identity()
+        self.backbone = backbone
+        self.proj = nn.Linear(backbone_out, latent_dim)
 
     def forward(self, x):
-        x = self.conv(x)
-        x = torch.flatten(x, start_dim=1)
-        h = self.fc(x)
-        return h
+        feats = self.backbone(x)
+        return self.proj(feats)
 
     @property
     def feature_dim(self) -> int:
